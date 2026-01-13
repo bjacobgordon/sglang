@@ -1,4 +1,4 @@
 [codespell]
 ignore-words = words.acronyms.txt
-ignore-words-list = hel, hsa, thi, PRIS
+ignore-words-list = hel, thi, PRIS
 skip = *.json,*.jsonl,*.patch,*.txt
