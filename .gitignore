@@ -230,7 +230,8 @@ compile_commands.json
 *.iml
 
 # VSCode
-.vscode
+.vscode/*
+!.vscode/settings.json
 
 1
 
