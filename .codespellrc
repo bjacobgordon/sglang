@@ -1,4 +1,3 @@
 [codespell]
 ignore-words = words.proper_nouns.txt, words.acronyms.txt, words.tokens.txt
-ignore-words-list = hel, thi
 skip = *.json,*.jsonl,*.patch,*.txt
