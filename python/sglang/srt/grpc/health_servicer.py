@@ -126,7 +126,7 @@ class SGLangHealthServicer(health_pb2_grpc.HealthServicer):
 
             # Check if scheduler is responsive (received data recently)
             time_since_last_receive = (
-                time.time() - self.request_manager.last_receive_tstamp
+                time.time() - self.request_manager.last_receive_timestamp
             )
 
             # If no recent activity and we have active requests, might be stuck

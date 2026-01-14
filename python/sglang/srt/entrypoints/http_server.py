@@ -508,7 +508,7 @@ async def health_generate(request: Request) -> Response:
     tic = time.time()
     while time.time() < tic + HEALTH_CHECK_TIMEOUT:
         await asyncio.sleep(1)
-        if _global_state.tokenizer_manager.last_receive_tstamp > tic:
+        if _global_state.tokenizer_manager.last_receive_timestamp > tic:
             task.cancel()
             _global_state.tokenizer_manager.rid_to_state.pop(rid, None)
             _global_state.tokenizer_manager.server_status = ServerStatus.Up
@@ -517,7 +517,8 @@ async def health_generate(request: Request) -> Response:
     task.cancel()
     tic_time = time.strftime("%H:%M:%S", time.localtime(tic))
     last_receive_time = time.strftime(
-        "%H:%M:%S", time.localtime(_global_state.tokenizer_manager.last_receive_tstamp)
+        "%H:%M:%S",
+        time.localtime(_global_state.tokenizer_manager.last_receive_timestamp),
     )
     logger.error(
         f"Health check failed. Server couldn't get a response from detokenizer for last "

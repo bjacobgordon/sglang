@@ -209,7 +209,7 @@ class GrpcRequestManager:
         self.is_pause_cond = asyncio.Condition()
 
         # Metrics
-        self.last_receive_tstamp = time.time()
+        self.last_receive_timestamp = time.time()
 
         # Crash dump for debugging
         self.crash_dump_request_list = []
@@ -515,7 +515,7 @@ class GrpcRequestManager:
             try:
                 # Receive from scheduler
                 recv_obj = await self.recv_from_scheduler.recv_pyobj()
-                self.last_receive_tstamp = time.time()
+                self.last_receive_timestamp = time.time()
 
                 # Check for pause (optimized: check flag before acquiring lock)
                 if self.is_pause:
@@ -942,7 +942,7 @@ class GrpcRequestManager:
         return {
             "active_requests": len(self.rid_to_state),
             "paused": self.is_pause,
-            "last_receive_time": self.last_receive_tstamp,
+            "last_receive_time": self.last_receive_timestamp,
         }
 
     async def get_loads(

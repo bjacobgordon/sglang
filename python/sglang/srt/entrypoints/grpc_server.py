@@ -360,7 +360,7 @@ class SGLangSchedulerServicer(sglang_scheduler_pb2_grpc.SglangSchedulerServicer)
         while time.time() < tic + HEALTH_CHECK_TIMEOUT:
             await asyncio.sleep(1)
             # Check if we got a response from scheduler
-            if self.request_manager.last_receive_tstamp > tic:
+            if self.request_manager.last_receive_timestamp > tic:
                 task.cancel()
                 # Clean up health check state
                 self.request_manager._cleanup_request_state(rid)

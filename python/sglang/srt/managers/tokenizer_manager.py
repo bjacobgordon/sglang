@@ -345,7 +345,7 @@ class TokenizerManager(TokenizerCommunicatorMixin, TokenizerManagerMultiItemMixi
         # Health check
         self.server_status = ServerStatus.Starting
         self.gracefully_exit = False
-        self.last_receive_tstamp = 0
+        self.last_receive_timestamp = 0
 
         # For load balancing
         self.current_load = 0
@@ -1471,7 +1471,7 @@ class TokenizerManager(TokenizerCommunicatorMixin, TokenizerManagerMultiItemMixi
             with self.soft_watchdog.disable():
                 recv_obj = await self.recv_from_detokenizer.recv_pyobj()
             self._result_dispatcher(recv_obj)
-            self.last_receive_tstamp = time.time()
+            self.last_receive_timestamp = time.time()
             self.soft_watchdog.feed()
 
     def _handle_batch_output(
