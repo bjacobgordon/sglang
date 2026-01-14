@@ -1,2 +1,12 @@
 {
+  "dictionaryDefinitions": [
+    {
+      "name": "Proper nouns",
+      "path": "./words.proper_nouns.txt",
+      "addWords": false
+    }
+  ],
+  "dictionaries": [
+    "Proper nouns"
+  ],
 }
