@@ -11,6 +11,7 @@ from typing import AsyncIterator
 
 import grpc
 from grpc_health.v1 import health_pb2, health_pb2_grpc
+from grpc_request_manager import GrpcRequestManager
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,7 @@ class SGLangHealthServicer(health_pb2_grpc.HealthServicer):
     OVERALL_SERVER = ""  # Empty string for overall server health
     SGLANG_SERVICE = "sglang.grpc.scheduler.SglangScheduler"
 
-    def __init__(self, request_manager, scheduler_info: dict):
+    def __init__(self, request_manager: GrpcRequestManager, scheduler_info: dict):
         """
         Initialize health servicer.
 
