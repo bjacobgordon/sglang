@@ -626,7 +626,7 @@ app.include_router(v1_loads_router)
 
 
 @app.exception_handler(HTTPException)
-async def validation_exception_handler(
+async def enrich(
     request: Request,
     exc: HTTPException,
 ):
@@ -658,7 +658,7 @@ async def validation_exception_handler(
 
 # Custom exception handlers to change validation error status codes
 @app.exception_handler(RequestValidationError)
-async def validation_exception_handler(
+async def override_default(
     request: Request,
     exc: RequestValidationError,
 ):
