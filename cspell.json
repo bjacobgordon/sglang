@@ -14,5 +14,8 @@
   "dictionaries": [
     "Proper nouns",
     "Natural Language Processing"
+  ],
+  "ignoreRegExpList": [
+    "/\\bos\\.[^\\W\\d]\\w*\\b/g"
   ]
 }
