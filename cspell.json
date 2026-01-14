@@ -4,9 +4,15 @@
       "name": "Proper nouns",
       "path": "./words.proper_nouns.txt",
       "addWords": false
+    },
+    {
+      "name": "Natural Language Processing",
+      "path": "./words.natural_language_processing.txt",
+      "addWords": false
     }
   ],
   "dictionaries": [
-    "Proper nouns"
-  ],
+    "Proper nouns",
+    "Natural Language Processing"
+  ]
 }
