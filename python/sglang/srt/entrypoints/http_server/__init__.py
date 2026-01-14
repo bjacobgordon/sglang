@@ -626,7 +626,10 @@ app.include_router(v1_loads_router)
 
 
 @app.exception_handler(HTTPException)
-async def validation_exception_handler(request: Request, exc: HTTPException):
+async def validation_exception_handler(
+    request: Request,
+    exc: HTTPException,
+):
     """Enrich HTTP exception with status code and other details.
 
     For /v1/responses, emit OpenAI-style nested error envelope:
@@ -655,7 +658,10 @@ async def validation_exception_handler(request: Request, exc: HTTPException):
 
 # Custom exception handlers to change validation error status codes
 @app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
+async def validation_exception_handler(
+    request: Request,
+    exc: RequestValidationError,
+):
     """Override FastAPI's default 422 validation error with 400.
 
     For /v1/responses, emit OpenAI-style nested error envelope; for other endpoints keep legacy format.
