@@ -974,7 +974,7 @@ def _launch_subprocesses(
     run_detokenizer_process_func: Callable,
     port_args: Optional[PortArgs] = None,
 ) -> Tuple[
-    Optional[TokenizerManager],
+    Optional[TokenizerManager | MultiTokenizerRouter],
     Optional[TemplateManager],
     Tuple[Dict],
     PortArgs,
