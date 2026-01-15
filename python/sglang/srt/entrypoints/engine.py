@@ -34,6 +34,7 @@ from typing import (
     Iterator,
     List,
     Optional,
+    Protocol,
     Tuple,
     Union,
 )
@@ -101,7 +102,19 @@ asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 _is_cuda = is_cuda()
 
 
-def init_default_tokenizer_and_template_managers(
+class TokenizerAndTemplateManagersInitializer(Protocol):
+    def __call__(
+        self,
+        server_args: ServerArgs,
+        port_args: PortArgs,
+        SomeTokenizerManager: type[TokenizerManager] = TokenizerManager,
+    ) -> Tuple[
+        TokenizerManager,
+        TemplateManager,
+    ]: ...
+
+
+def _init_default_tokenizer_and_template_managers(
     server_args: ServerArgs,
     port_args: PortArgs,
     SomeTokenizerManager: type[TokenizerManager] = TokenizerManager,
@@ -119,6 +132,11 @@ def init_default_tokenizer_and_template_managers(
     )
 
     return tokenizer_manager, template_manager
+
+
+init_default_tokenizer_and_template_managers: (
+    TokenizerAndTemplateManagersInitializer
+) = _init_default_tokenizer_and_template_managers
 
 
 class Engine(EngineBase):
