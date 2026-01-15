@@ -975,7 +975,7 @@ def _launch_subprocesses(
     port_args: Optional[PortArgs] = None,
 ) -> Tuple[
     TokenizerManager,
-    TemplateManager,
+    Optional[TemplateManager],
     Tuple[Dict],
     PortArgs,
 ]:

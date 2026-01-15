@@ -2003,6 +2003,9 @@ def _launch_server(
         )
     )
 
+    if template_manager is None:
+        raise RuntimeError("Template manager is not initialized.")
+
     # Parse info got from the schedulers
     remote_instance_transfer_engine_info = (
         parse_remote_instance_transfer_engine_info_from_scheduler_infos(scheduler_infos)
