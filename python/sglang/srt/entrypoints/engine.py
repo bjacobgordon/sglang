@@ -1024,16 +1024,10 @@ def _launch_subprocesses(
             # Launch multi-tokenizer router
             tokenizer_manager = MultiTokenizerRouter(server_args, port_args)
 
-        # Wait for the model to finish loading
-        scheduler_infos = _wait_for_scheduler_ready(
-            scheduler_pipe_readers, scheduler_procs
-        )
+    # Wait for the model to finish loading
+    scheduler_infos = _wait_for_scheduler_ready(scheduler_pipe_readers, scheduler_procs)
 
     if not node_rank_does_require_tokenizer:
-        scheduler_infos = _wait_for_scheduler_ready(
-            scheduler_pipe_readers, scheduler_procs
-        )
-
         # When not using `Engine` as a Python API, blocking here is acceptable.
         if os.getenv("SGLANG_BLOCK_NONZERO_RANK_CHILDREN") != "0":
             launch_dummy_health_check_server(
