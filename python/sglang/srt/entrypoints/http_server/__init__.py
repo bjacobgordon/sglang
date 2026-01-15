@@ -2003,6 +2003,9 @@ def _launch_server(
         )
     )
 
+    if tokenizer_manager is None:
+        raise RuntimeError("Tokenizer manager is not initialized.")
+
     if template_manager is None:
         raise RuntimeError("Template manager is not initialized.")
 
