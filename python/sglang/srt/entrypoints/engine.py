@@ -1021,7 +1021,6 @@ def _launch_subprocesses(
 
         tokenizer_manager = None
         template_manager = None
-        return tokenizer_manager, template_manager, scheduler_infos, port_args
     else:
         # Launch detokenizer process
         detoken_proc = mp.Process(
@@ -1051,4 +1050,4 @@ def _launch_subprocesses(
         # Get back some info from scheduler to tokenizer_manager
         tokenizer_manager.max_req_input_len = scheduler_infos[0]["max_req_input_len"]
 
-        return tokenizer_manager, template_manager, scheduler_infos, port_args
+    return tokenizer_manager, template_manager, scheduler_infos, port_args
