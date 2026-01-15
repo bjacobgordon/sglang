@@ -54,7 +54,7 @@ from fastapi.responses import ORJSONResponse, Response, StreamingResponse
 from sglang.srt.disaggregation.utils import FAKE_BOOTSTRAP_HOST, DisaggregationMode
 from sglang.srt.entrypoints.engine import (
     _launch_subprocesses,
-    init_tokenizer_manager,
+    init_tokenizer_and_template_managers,
     run_detokenizer_process,
     run_scheduler_process,
 )
@@ -1958,7 +1958,7 @@ async def vertex_generate(
 
 def launch_server(
     server_args: ServerArgs,
-    init_tokenizer_manager_func: Callable = init_tokenizer_manager,
+    init_tokenizer_and_template_managers_func: Callable = init_tokenizer_and_template_managers,
     run_scheduler_process_func: Callable = run_scheduler_process,
     run_detokenizer_process_func: Callable = run_detokenizer_process,
     execute_warmup_func: Callable = _execute_server_warmup,
@@ -1983,7 +1983,7 @@ def launch_server(
     tokenizer_manager, template_manager, scheduler_infos, port_args = (
         _launch_subprocesses(
             server_args=server_args,
-            init_tokenizer_manager_func=init_tokenizer_manager_func,
+            init_tokenizer_and_template_managers_func=init_tokenizer_and_template_managers_func,
             run_scheduler_process_func=run_scheduler_process_func,
             run_detokenizer_process_func=run_detokenizer_process_func,
         )

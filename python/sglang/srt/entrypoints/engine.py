@@ -92,7 +92,7 @@ asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 _is_cuda = is_cuda()
 
 
-def init_tokenizer_manager(
+def init_tokenizer_and_template_managers(
     server_args: ServerArgs,
     port_args: PortArgs,
     SomeTokenizerManager: type[TokenizerManager] = TokenizerManager,
@@ -129,7 +129,9 @@ class Engine(EngineBase):
     # Some fields to allow people to override the server args
     # and launch processes for their private forks.
     server_args_class: ServerArgs = ServerArgs
-    init_tokenizer_manager_func: Callable = staticmethod(init_tokenizer_manager)
+    init_tokenizer_and_template_managers_func: Callable = staticmethod(
+        init_tokenizer_and_template_managers
+    )
     run_scheduler_process_func: Callable = staticmethod(run_scheduler_process)
     run_detokenizer_process_func: Callable = staticmethod(run_detokenizer_process)
 
@@ -159,7 +161,7 @@ class Engine(EngineBase):
         tokenizer_manager, template_manager, scheduler_infos, port_args = (
             _launch_subprocesses(
                 server_args=server_args,
-                init_tokenizer_manager_func=self.init_tokenizer_manager_func,
+                init_tokenizer_and_template_managers_func=self.init_tokenizer_and_template_managers_func,
                 run_scheduler_process_func=self.run_scheduler_process_func,
                 run_detokenizer_process_func=self.run_detokenizer_process_func,
             )
@@ -940,7 +942,7 @@ def _launch_scheduler_processes(
 
 def _launch_subprocesses(
     server_args: ServerArgs,
-    init_tokenizer_manager_func: Callable,
+    init_tokenizer_and_template_managers_func: Callable,
     run_scheduler_process_func: Callable,
     run_detokenizer_process_func: Callable,
     port_args: Optional[PortArgs] = None,
@@ -1000,7 +1002,7 @@ def _launch_subprocesses(
 
     # Init tokenizer manager first, as the bootstrap server is initialized here
     if server_args.tokenizer_worker_num == 1:
-        tokenizer_manager, template_manager = init_tokenizer_manager_func(
+        tokenizer_manager, template_manager = init_tokenizer_and_template_managers_func(
             server_args, port_args
         )
     else:
