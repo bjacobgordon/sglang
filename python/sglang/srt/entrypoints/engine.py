@@ -156,9 +156,9 @@ class Engine(EngineBase):
     # Some fields to allow people to override the server args
     # and launch processes for their private forks.
     server_args_class: ServerArgs = ServerArgs
-    init_tokenizer_and_template_managers_func: Callable = staticmethod(
-        init_default_tokenizer_and_template_managers
-    )
+    init_tokenizer_and_template_managers_func: (
+        TokenizerAndTemplateManagersInitializer
+    ) = staticmethod(init_default_tokenizer_and_template_managers)
     run_scheduler_process_func: Callable = staticmethod(run_scheduler_process)
     run_detokenizer_process_func: Callable = staticmethod(run_detokenizer_process)
 
@@ -969,7 +969,7 @@ def _launch_scheduler_processes(
 
 def _launch_subprocesses(
     server_args: ServerArgs,
-    init_tokenizer_and_template_managers_func: Callable,
+    init_tokenizer_and_template_managers_func: TokenizerAndTemplateManagersInitializer,
     run_scheduler_process_func: Callable,
     run_detokenizer_process_func: Callable,
     port_args: Optional[PortArgs] = None,

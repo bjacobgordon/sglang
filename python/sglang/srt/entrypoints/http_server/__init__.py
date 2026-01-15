@@ -54,6 +54,7 @@ from fastapi.responses import ORJSONResponse, Response, StreamingResponse
 
 from sglang.srt.disaggregation.utils import FAKE_BOOTSTRAP_HOST, DisaggregationMode
 from sglang.srt.entrypoints.engine import (
+    TokenizerAndTemplateManagersInitializer,
     _launch_subprocesses,
     init_default_tokenizer_and_template_managers,
     run_detokenizer_process,
@@ -1961,7 +1962,7 @@ class ServerLauncher(Protocol):
     def __call__(
         self,
         server_args: ServerArgs,
-        init_tokenizer_and_template_managers_func: Callable = init_default_tokenizer_and_template_managers,
+        init_tokenizer_and_template_managers_func: TokenizerAndTemplateManagersInitializer = init_default_tokenizer_and_template_managers,
         run_scheduler_process_func: Callable = run_scheduler_process,
         run_detokenizer_process_func: Callable = run_detokenizer_process,
         execute_warmup_func: Callable = _execute_server_warmup,
@@ -1971,7 +1972,7 @@ class ServerLauncher(Protocol):
 
 def _launch_server(
     server_args: ServerArgs,
-    init_tokenizer_and_template_managers_func: Callable = init_default_tokenizer_and_template_managers,
+    init_tokenizer_and_template_managers_func: TokenizerAndTemplateManagersInitializer = init_default_tokenizer_and_template_managers,
     run_scheduler_process_func: Callable = run_scheduler_process,
     run_detokenizer_process_func: Callable = run_detokenizer_process,
     execute_warmup_func: Callable = _execute_server_warmup,
