@@ -1004,23 +1004,7 @@ def _launch_subprocesses(
 
     node_rank_does_require_tokenizer = server_args.node_rank < 1
 
-    if not (node_rank_does_require_tokenizer):
-        scheduler_infos = _wait_for_scheduler_ready(
-            scheduler_pipe_readers, scheduler_procs
-        )
-
-        # When not using `Engine` as a Python API, blocking here is acceptable.
-        if os.getenv("SGLANG_BLOCK_NONZERO_RANK_CHILDREN") != "0":
-            launch_dummy_health_check_server(
-                server_args.host, server_args.port, server_args.enable_metrics
-            )
-
-            for proc in scheduler_procs:
-                proc.join()
-                logger.error(
-                    f"Scheduler or DataParallelController {proc.pid} terminated with {proc.exitcode}"
-                )
-    else:
+    if node_rank_does_require_tokenizer:
         # Launch detokenizer process
         detoken_proc = mp.Process(
             target=run_detokenizer_process_func,
@@ -1044,6 +1028,22 @@ def _launch_subprocesses(
         scheduler_infos = _wait_for_scheduler_ready(
             scheduler_pipe_readers, scheduler_procs
         )
+    else:
+        scheduler_infos = _wait_for_scheduler_ready(
+            scheduler_pipe_readers, scheduler_procs
+        )
+
+        # When not using `Engine` as a Python API, blocking here is acceptable.
+        if os.getenv("SGLANG_BLOCK_NONZERO_RANK_CHILDREN") != "0":
+            launch_dummy_health_check_server(
+                server_args.host, server_args.port, server_args.enable_metrics
+            )
+
+            for proc in scheduler_procs:
+                proc.join()
+                logger.error(
+                    f"Scheduler or DataParallelController {proc.pid} terminated with {proc.exitcode}"
+                )
 
     if tokenizer_manager is not None:
         # Get back some info from scheduler to tokenizer_manager
