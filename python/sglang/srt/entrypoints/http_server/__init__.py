@@ -34,6 +34,7 @@ from typing import (
     Dict,
     List,
     Optional,
+    Protocol,
     Union,
 )
 
@@ -1956,7 +1957,19 @@ async def vertex_generate(
     return ORJSONResponse({"predictions": ret})
 
 
-def launch_server(
+class ServerLauncher(Protocol):
+    def __call__(
+        self,
+        server_args: ServerArgs,
+        init_tokenizer_and_template_managers_func: Callable = init_default_tokenizer_and_template_managers,
+        run_scheduler_process_func: Callable = run_scheduler_process,
+        run_detokenizer_process_func: Callable = run_detokenizer_process,
+        execute_warmup_func: Callable = _execute_server_warmup,
+        launch_callback: Optional[Callable[[], None]] = None,
+    ) -> None: ...
+
+
+def _launch_server(
     server_args: ServerArgs,
     init_tokenizer_and_template_managers_func: Callable = init_default_tokenizer_and_template_managers,
     run_scheduler_process_func: Callable = run_scheduler_process,
@@ -2089,8 +2102,12 @@ def launch_server(
             _global_state.tokenizer_manager.socket_mapping.clear_all_sockets()
 
 
+launch_server: ServerLauncher = _launch_server
+
+
 __all__ = [
     "get_global_state",
     "app",
+    "ServerLauncher",
     "launch_server",
 ]
