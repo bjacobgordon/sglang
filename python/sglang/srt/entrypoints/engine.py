@@ -1002,10 +1002,9 @@ def _launch_subprocesses(
     tokenizer_manager = None
     template_manager = None
 
-    if not (server_args.node_rank < 1):
-        # In multi-node cases, non-zero rank nodes do not need to run tokenizer or detokenizer,
-        # so they can just wait here.
+    node_rank_does_require_tokenizer = server_args.node_rank < 1
 
+    if not (node_rank_does_require_tokenizer):
         scheduler_infos = _wait_for_scheduler_ready(
             scheduler_pipe_readers, scheduler_procs
         )
