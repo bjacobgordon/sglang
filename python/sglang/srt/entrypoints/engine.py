@@ -1019,7 +1019,9 @@ def _launch_subprocesses(
                     f"Scheduler or DataParallelController {proc.pid} terminated with {proc.exitcode}"
                 )
 
-        return None, None, scheduler_infos, port_args
+        tokenizer_manager = None
+        template_manager = None
+        return tokenizer_manager, template_manager, scheduler_infos, port_args
     else:
         # Launch detokenizer process
         detoken_proc = mp.Process(
