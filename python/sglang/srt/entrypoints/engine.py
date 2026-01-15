@@ -1007,6 +1007,7 @@ def _launch_subprocesses(
             scheduler_pipe_readers, scheduler_procs
         )
 
+        # When not using `Engine` as a Python API, blocking here is acceptable.
         if os.getenv("SGLANG_BLOCK_NONZERO_RANK_CHILDREN") != "0":
             launch_dummy_health_check_server(
                 server_args.host, server_args.port, server_args.enable_metrics
@@ -1020,7 +1021,6 @@ def _launch_subprocesses(
 
             return None, None, scheduler_infos, port_args
         else:
-            # When using `Engine` as a Python API, we don't want to block here.
             return None, None, scheduler_infos, port_args
 
     # Launch detokenizer process
