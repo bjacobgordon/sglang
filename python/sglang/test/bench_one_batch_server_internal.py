@@ -7,7 +7,7 @@ import os
 import random
 import re
 import time
-from typing import Callable, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 import requests
@@ -22,7 +22,7 @@ from sglang.bench_serving import (
     sample_random_requests,
 )
 from sglang.profiler import run_profile
-from sglang.srt.entrypoints.http_server import launch_server
+from sglang.srt.entrypoints.http_server import ServerLauncher, launch_server
 from sglang.srt.server_args import ServerArgs
 from sglang.srt.utils import is_blackwell, kill_process_tree
 from sglang.test.test_utils import is_in_ci, write_github_step_summary
@@ -245,7 +245,7 @@ class BenchOneCaseResult(BaseModel):
             fout.write(json.dumps(res) + "\n")
 
 
-def launch_server_internal(launch_server_func: Callable, server_args: ServerArgs):
+def launch_server_internal(launch_server_func: ServerLauncher, server_args: ServerArgs):
     try:
         launch_server_func(server_args)
     except Exception as e:
@@ -254,7 +254,7 @@ def launch_server_internal(launch_server_func: Callable, server_args: ServerArgs
         kill_process_tree(os.getpid(), include_parent=False)
 
 
-def launch_server_process(launch_server_func: Callable, server_args: ServerArgs):
+def launch_server_process(launch_server_func: ServerLauncher, server_args: ServerArgs):
     proc = multiprocessing.Process(
         target=launch_server_internal,
         args=(
@@ -626,7 +626,7 @@ def get_report_summary(
 def run_benchmark_internal(
     server_args: ServerArgs,
     bench_args: BenchArgs,
-    launch_server_func: Callable = launch_server,
+    launch_server_func: ServerLauncher = launch_server,
 ):
     # set random seed
     random.seed(bench_args.seed)
