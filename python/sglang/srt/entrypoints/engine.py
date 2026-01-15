@@ -1002,7 +1002,7 @@ def _launch_subprocesses(
     tokenizer_manager = None
     template_manager = None
 
-    node_rank_does_require_tokenizer = server_args.node_rank < 1
+    node_rank_does_require_tokenizer = server_args.node_rank <= 0
 
     if node_rank_does_require_tokenizer:
         # Launch detokenizer process
