@@ -999,6 +999,9 @@ def _launch_subprocesses(
         run_scheduler_process_func=run_scheduler_process_func,
     )
 
+    tokenizer_manager = None
+    template_manager = None
+
     if server_args.node_rank >= 1:
         # In multi-node cases, non-zero rank nodes do not need to run tokenizer or detokenizer,
         # so they can just wait here.
@@ -1018,9 +1021,6 @@ def _launch_subprocesses(
                 logger.error(
                     f"Scheduler or DataParallelController {proc.pid} terminated with {proc.exitcode}"
                 )
-
-        tokenizer_manager = None
-        template_manager = None
     else:
         # Launch detokenizer process
         detoken_proc = mp.Process(
@@ -1040,7 +1040,6 @@ def _launch_subprocesses(
         else:
             # Launch multi-tokenizer router
             tokenizer_manager = MultiTokenizerRouter(server_args, port_args)
-            template_manager = None
 
         # Wait for the model to finish loading
         scheduler_infos = _wait_for_scheduler_ready(
