@@ -1046,6 +1046,7 @@ def _launch_subprocesses(
             scheduler_pipe_readers, scheduler_procs
         )
 
+    if tokenizer_manager is not None:
         # Get back some info from scheduler to tokenizer_manager
         tokenizer_manager.max_req_input_len = scheduler_infos[0]["max_req_input_len"]
 
