@@ -1020,31 +1020,33 @@ def _launch_subprocesses(
                 )
 
         return None, None, scheduler_infos, port_args
-
-    # Launch detokenizer process
-    detoken_proc = mp.Process(
-        target=run_detokenizer_process_func,
-        args=(
-            server_args,
-            port_args,
-        ),
-    )
-    detoken_proc.start()
-
-    # Init tokenizer manager first, as the bootstrap server is initialized here
-    if server_args.tokenizer_worker_num == 1:
-        tokenizer_manager, template_manager = init_tokenizer_and_template_managers_func(
-            server_args, port_args
-        )
     else:
-        # Launch multi-tokenizer router
-        tokenizer_manager = MultiTokenizerRouter(server_args, port_args)
-        template_manager = None
+        # Launch detokenizer process
+        detoken_proc = mp.Process(
+            target=run_detokenizer_process_func,
+            args=(
+                server_args,
+                port_args,
+            ),
+        )
+        detoken_proc.start()
 
-    # Wait for the model to finish loading
-    scheduler_infos = _wait_for_scheduler_ready(scheduler_pipe_readers, scheduler_procs)
+        # Init tokenizer manager first, as the bootstrap server is initialized here
+        if server_args.tokenizer_worker_num == 1:
+            tokenizer_manager, template_manager = (
+                init_tokenizer_and_template_managers_func(server_args, port_args)
+            )
+        else:
+            # Launch multi-tokenizer router
+            tokenizer_manager = MultiTokenizerRouter(server_args, port_args)
+            template_manager = None
 
-    # Get back some info from scheduler to tokenizer_manager
-    tokenizer_manager.max_req_input_len = scheduler_infos[0]["max_req_input_len"]
+        # Wait for the model to finish loading
+        scheduler_infos = _wait_for_scheduler_ready(
+            scheduler_pipe_readers, scheduler_procs
+        )
 
-    return tokenizer_manager, template_manager, scheduler_infos, port_args
+        # Get back some info from scheduler to tokenizer_manager
+        tokenizer_manager.max_req_input_len = scheduler_infos[0]["max_req_input_len"]
+
+        return tokenizer_manager, template_manager, scheduler_infos, port_args
