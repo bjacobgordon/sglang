@@ -1002,7 +1002,7 @@ def _launch_subprocesses(
     tokenizer_manager = None
     template_manager = None
 
-    if server_args.node_rank >= 1:
+    if not (server_args.node_rank < 1):
         # In multi-node cases, non-zero rank nodes do not need to run tokenizer or detokenizer,
         # so they can just wait here.
 
