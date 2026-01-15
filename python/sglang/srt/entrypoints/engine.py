@@ -95,10 +95,9 @@ _is_cuda = is_cuda()
 def init_tokenizer_manager(
     server_args: ServerArgs,
     port_args: PortArgs,
-    TokenizerManagerClass: Optional[type[TokenizerManager]] = None,
+    TokenizerManagerClass: type[TokenizerManager] = TokenizerManager,
 ) -> Tuple[TokenizerManager, TemplateManager]:
     # Launch tokenizer process
-    TokenizerManagerClass = TokenizerManagerClass or TokenizerManager
     tokenizer_manager = TokenizerManagerClass(server_args, port_args)
 
     # Initialize templates
