@@ -1028,7 +1028,8 @@ def _launch_subprocesses(
         scheduler_infos = _wait_for_scheduler_ready(
             scheduler_pipe_readers, scheduler_procs
         )
-    else:
+
+    if not node_rank_does_require_tokenizer:
         scheduler_infos = _wait_for_scheduler_ready(
             scheduler_pipe_readers, scheduler_procs
         )
