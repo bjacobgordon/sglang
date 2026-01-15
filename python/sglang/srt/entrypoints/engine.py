@@ -27,7 +27,16 @@ import random
 import signal
 import threading
 import time
-from typing import AsyncIterator, Callable, Dict, Iterator, List, Optional, Tuple, Union
+from typing import (
+    AsyncIterator,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)
 
 # Fix a bug of Python threading
 setattr(threading, "_register_atexit", lambda *args, **kwargs: None)
