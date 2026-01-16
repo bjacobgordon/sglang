@@ -2027,9 +2027,11 @@ def _launch_server(
     if server_args.enable_metrics:
         add_prometheus_track_response_middleware(app)
 
+    app_should_use_single_tokenizer = server_args.tokenizer_worker_num == 1
+
     # Pass additional arguments to the lifespan function.
     # They will be used for additional initialization setups.
-    if server_args.tokenizer_worker_num == 1:
+    if app_should_use_single_tokenizer:
         # If it is single tokenizer mode, we can pass the arguments by attributes of the app object.
         app.is_single_tokenizer_mode = True
         app.server_args = server_args
