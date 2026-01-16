@@ -2073,7 +2073,7 @@ def _launch_server(
         set_uvicorn_logging_configs(server_args)
 
         # Listen for HTTP requests
-        if server_args.tokenizer_worker_num == 1:
+        if app_should_use_single_tokenizer:
             # Default case, one tokenizer process
             uvicorn.run(
                 app,
@@ -2106,7 +2106,7 @@ def _launch_server(
                 workers=server_args.tokenizer_worker_num,
             )
     finally:
-        if not server_args.tokenizer_worker_num == 1:
+        if not app_should_use_single_tokenizer:
             multi_tokenizer_args_shm.unlink()
             _global_state.tokenizer_manager.socket_mapping.clear_all_sockets()
 
