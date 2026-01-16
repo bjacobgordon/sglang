@@ -2061,47 +2061,19 @@ def _launch_server(
                 admin_api_key=server_args.admin_api_key,
             )
 
-        try:
-            # Update logging configs
-            set_uvicorn_logging_configs(server_args)
+        # Update logging configs
+        set_uvicorn_logging_configs(server_args)
 
-            # Listen for HTTP requests
-            if app_should_use_single_tokenizer:
-                # Default case, one tokenizer process
-                uvicorn.run(
-                    app,
-                    host=server_args.host,
-                    port=server_args.port,
-                    root_path=server_args.fastapi_root_path,
-                    log_level=server_args.log_level_http or server_args.log_level,
-                    timeout_keep_alive=5,
-                    loop="uvloop",
-                )
-            else:
-                # Multiple tokenizer and http processes
-                from uvicorn.config import LOGGING_CONFIG
-
-                LOGGING_CONFIG["loggers"]["sglang.srt.entrypoints.http_server"] = {
-                    "handlers": ["default"],
-                    "level": "INFO",
-                    "propagate": False,
-                }
-                monkey_patch_uvicorn_multiprocessing()
-
-                uvicorn.run(
-                    "sglang.srt.entrypoints.http_server:app",
-                    host=server_args.host,
-                    port=server_args.port,
-                    root_path=server_args.fastapi_root_path,
-                    log_level=server_args.log_level_http or server_args.log_level,
-                    timeout_keep_alive=5,
-                    loop="uvloop",
-                    workers=server_args.tokenizer_worker_num,
-                )
-        finally:
-            if not app_should_use_single_tokenizer:
-                # multi_tokenizer_args_shm.unlink()
-                _global_state.tokenizer_manager.socket_mapping.clear_all_sockets()
+        # Listen for HTTP requests
+        uvicorn.run(
+            app,
+            host=server_args.host,
+            port=server_args.port,
+            root_path=server_args.fastapi_root_path,
+            log_level=server_args.log_level_http or server_args.log_level,
+            timeout_keep_alive=5,
+            loop="uvloop",
+        )
     else:
         # If it is multi-tokenizer mode, we need to write the arguments to shared memory
         # for other worker processes to read.
@@ -2114,43 +2086,29 @@ def _launch_server(
             # Update logging configs
             set_uvicorn_logging_configs(server_args)
 
-            # Listen for HTTP requests
-            if app_should_use_single_tokenizer:
-                # Default case, one tokenizer process
-                uvicorn.run(
-                    app,
-                    host=server_args.host,
-                    port=server_args.port,
-                    root_path=server_args.fastapi_root_path,
-                    log_level=server_args.log_level_http or server_args.log_level,
-                    timeout_keep_alive=5,
-                    loop="uvloop",
-                )
-            else:
-                # Multiple tokenizer and http processes
-                from uvicorn.config import LOGGING_CONFIG
+            # Multiple tokenizer and http processes
+            from uvicorn.config import LOGGING_CONFIG
 
-                LOGGING_CONFIG["loggers"]["sglang.srt.entrypoints.http_server"] = {
-                    "handlers": ["default"],
-                    "level": "INFO",
-                    "propagate": False,
-                }
-                monkey_patch_uvicorn_multiprocessing()
+            LOGGING_CONFIG["loggers"]["sglang.srt.entrypoints.http_server"] = {
+                "handlers": ["default"],
+                "level": "INFO",
+                "propagate": False,
+            }
+            monkey_patch_uvicorn_multiprocessing()
 
-                uvicorn.run(
-                    "sglang.srt.entrypoints.http_server:app",
-                    host=server_args.host,
-                    port=server_args.port,
-                    root_path=server_args.fastapi_root_path,
-                    log_level=server_args.log_level_http or server_args.log_level,
-                    timeout_keep_alive=5,
-                    loop="uvloop",
-                    workers=server_args.tokenizer_worker_num,
-                )
+            uvicorn.run(
+                "sglang.srt.entrypoints.http_server:app",
+                host=server_args.host,
+                port=server_args.port,
+                root_path=server_args.fastapi_root_path,
+                log_level=server_args.log_level_http or server_args.log_level,
+                timeout_keep_alive=5,
+                loop="uvloop",
+                workers=server_args.tokenizer_worker_num,
+            )
         finally:
-            if not app_should_use_single_tokenizer:
-                multi_tokenizer_args_shm.unlink()
-                _global_state.tokenizer_manager.socket_mapping.clear_all_sockets()
+            multi_tokenizer_args_shm.unlink()
+            _global_state.tokenizer_manager.socket_mapping.clear_all_sockets()
 
 
 launch_server: ServerLauncher = _launch_server
