@@ -2106,7 +2106,7 @@ def _launch_server(
                 workers=server_args.tokenizer_worker_num,
             )
     finally:
-        if not server_args.tokenizer_worker_num <= 1:
+        if not server_args.tokenizer_worker_num == 1:
             multi_tokenizer_args_shm.unlink()
             _global_state.tokenizer_manager.socket_mapping.clear_all_sockets()
 
