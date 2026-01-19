@@ -353,7 +353,7 @@ def _execute_server_warmup(server_args: ServerArgs):
         # TODO: ChatCompletionRequest does not have bootstrap info required by disaggregation mode, disable image-warmup for now
         # Only use chat completions format for generation models, not embedding models
         json_data = {
-            "model": _current_context.tokenizer_manager.served_model_name,
+            "model": get_current_context().tokenizer_manager.served_model_name,
             "messages": [
                 {
                     "role": "user",
@@ -400,7 +400,7 @@ def _execute_server_warmup(server_args: ServerArgs):
                 timeout=warmup_timeout if warmup_timeout > 0 else 600,
             )
             assert res.status_code == 200, f"{res.text}"
-            _current_context.tokenizer_manager.server_status = ServerStatus.Up
+            get_current_context().tokenizer_manager.server_status = ServerStatus.Up
 
         else:
             logger.info(f"Start of pd disaggregation warmup ...")
@@ -431,14 +431,14 @@ def _execute_server_warmup(server_args: ServerArgs):
                 logger.info(
                     f"End of prefill disaggregation mode warmup with status {res.status_code}, resp: {res.json()}"
                 )
-                _current_context.tokenizer_manager.server_status = ServerStatus.Up
+                get_current_context().tokenizer_manager.server_status = ServerStatus.Up
             else:
                 logger.info(
                     "Prefill disaggregation mode warm Up Failed, status code: {}".format(
                         res.status_code
                     )
                 )
-                _current_context.tokenizer_manager.server_status = (
+                get_current_context().tokenizer_manager.server_status = (
                     ServerStatus.UnHealthy
                 )
 
@@ -459,7 +459,7 @@ def _wait_weights_ready():
     start_time = time.time()
 
     for _ in range(timeout):
-        if _current_context.tokenizer_manager.initial_weights_loaded:
+        if get_current_context().tokenizer_manager.initial_weights_loaded:
             logger.info(
                 f"Weights are ready after {time.time() - start_time:.2f} seconds"
             )
@@ -470,7 +470,7 @@ def _wait_weights_ready():
     logger.error(
         f"Weights are not ready after waiting {timeout} seconds. "
         f"Consider increasing SGLANG_WAIT_WEIGHTS_READY_TIMEOUT environment variable. "
-        f"Current status: initial_weights_loaded={_current_context.tokenizer_manager.initial_weights_loaded}"
+        f"Current status: initial_weights_loaded={get_current_context().tokenizer_manager.initial_weights_loaded}"
     )
 
 
@@ -487,7 +487,7 @@ def _wait_and_warmup(
         if not execute_warmup_func(server_args):
             return
     else:
-        _current_context.tokenizer_manager.server_status = ServerStatus.Up
+        get_current_context().tokenizer_manager.server_status = ServerStatus.Up
 
     # The server is ready for requests
     logger.info("The server is fired up and ready to roll!")
@@ -530,38 +530,38 @@ async def lifespan(fast_api_app: FastAPI):
 
     # Initialize OpenAI serving handlers
     fast_api_app.state.openai_serving_completion = OpenAIServingCompletion(
-        _current_context.tokenizer_manager,
-        _current_context.template_manager,
+        get_current_context().tokenizer_manager,
+        get_current_context().template_manager,
     )
     fast_api_app.state.openai_serving_chat = OpenAIServingChat(
-        _current_context.tokenizer_manager,
-        _current_context.template_manager,
+        get_current_context().tokenizer_manager,
+        get_current_context().template_manager,
     )
     fast_api_app.state.openai_serving_embedding = OpenAIServingEmbedding(
-        _current_context.tokenizer_manager,
-        _current_context.template_manager,
+        get_current_context().tokenizer_manager,
+        get_current_context().template_manager,
     )
     fast_api_app.state.openai_serving_classify = OpenAIServingClassify(
-        _current_context.tokenizer_manager,
-        _current_context.template_manager,
+        get_current_context().tokenizer_manager,
+        get_current_context().template_manager,
     )
     fast_api_app.state.openai_serving_score = OpenAIServingScore(
-        _current_context.tokenizer_manager
+        get_current_context().tokenizer_manager
     )
     fast_api_app.state.openai_serving_rerank = OpenAIServingRerank(
-        _current_context.tokenizer_manager,
-        _current_context.template_manager,
+        get_current_context().tokenizer_manager,
+        get_current_context().template_manager,
     )
     fast_api_app.state.openai_serving_tokenize = OpenAIServingTokenize(
-        _current_context.tokenizer_manager
+        get_current_context().tokenizer_manager
     )
     fast_api_app.state.openai_serving_detokenize = OpenAIServingDetokenize(
-        _current_context.tokenizer_manager
+        get_current_context().tokenizer_manager
     )
 
     # Initialize Ollama-compatible serving handler
     fast_api_app.state.ollama_serving = OllamaServing(
-        _current_context.tokenizer_manager
+        get_current_context().tokenizer_manager
     )
 
     # Launch tool server
@@ -582,8 +582,8 @@ async def lifespan(fast_api_app: FastAPI):
         )
 
         fast_api_app.state.openai_serving_responses = OpenAIServingResponses(
-            _current_context.tokenizer_manager,
-            _current_context.template_manager,
+            get_current_context().tokenizer_manager,
+            get_current_context().template_manager,
             enable_prompt_tokens_details=True,
             enable_force_include_usage=True,
             tool_server=tool_server,
@@ -597,7 +597,7 @@ async def lifespan(fast_api_app: FastAPI):
         await execute_warmups(
             server_args.disaggregation_mode,
             server_args.warmups.split(","),
-            _current_context.tokenizer_manager,
+            get_current_context().tokenizer_manager,
         )
         logger.info("Warmup ended")
 
@@ -720,11 +720,11 @@ async def health_generate(
     If the server is not running anything, this request will be run, so we know whether the server is healthy.
     """
 
-    if _current_context.tokenizer_manager.gracefully_exit:
+    if get_current_context().tokenizer_manager.gracefully_exit:
         logger.info("Health check request received during shutdown. Returning 503.")
         return Response(status_code=503)
 
-    if _current_context.tokenizer_manager.server_status == ServerStatus.Starting:
+    if get_current_context().tokenizer_manager.server_status == ServerStatus.Starting:
         return Response(status_code=503)
 
     if (
@@ -736,11 +736,11 @@ async def health_generate(
     sampling_params = {"max_new_tokens": 1, "temperature": 0.0}
     rid = f"HEALTH_CHECK_{time.time()}"
 
-    if _current_context.tokenizer_manager.is_image_gen:
-        gri = _current_context.tokenizer_manager.get_image_gen_health_check_request(
+    if get_current_context().tokenizer_manager.is_image_gen:
+        gri = get_current_context().tokenizer_manager.get_image_gen_health_check_request(
             rid, sampling_params
         )
-    elif _current_context.tokenizer_manager.is_generation:
+    elif get_current_context().tokenizer_manager.is_generation:
         gri = GenerateReqInput(
             rid=rid,
             input_ids=[0],
@@ -748,7 +748,7 @@ async def health_generate(
             log_metrics=False,
         )
         if (
-            _current_context.tokenizer_manager.server_args.disaggregation_mode
+            get_current_context().tokenizer_manager.server_args.disaggregation_mode
             != DisaggregationMode.NULL
         ):
             gri.bootstrap_host = FAKE_BOOTSTRAP_HOST
@@ -759,7 +759,7 @@ async def health_generate(
         )
 
     async def gen():
-        async for _ in _current_context.tokenizer_manager.generate_request(
+        async for _ in get_current_context().tokenizer_manager.generate_request(
             gri, request
         ):
             break
@@ -770,43 +770,43 @@ async def health_generate(
     tic = time.time()
     while time.time() < tic + HEALTH_CHECK_TIMEOUT:
         await asyncio.sleep(1)
-        if _current_context.tokenizer_manager.last_receive_timestamp > tic:
+        if get_current_context().tokenizer_manager.last_receive_timestamp > tic:
             task.cancel()
-            _current_context.tokenizer_manager.rid_to_state.pop(rid, None)
-            _current_context.tokenizer_manager.server_status = ServerStatus.Up
+            get_current_context().tokenizer_manager.rid_to_state.pop(rid, None)
+            get_current_context().tokenizer_manager.server_status = ServerStatus.Up
             return Response(status_code=200)
 
     task.cancel()
     tic_time = time.strftime("%H:%M:%S", time.localtime(tic))
     last_receive_time = time.strftime(
         "%H:%M:%S",
-        time.localtime(_current_context.tokenizer_manager.last_receive_timestamp),
+        time.localtime(get_current_context().tokenizer_manager.last_receive_timestamp),
     )
     logger.error(
         f"Health check failed. Server couldn't get a response from detokenizer for last "
         f"{HEALTH_CHECK_TIMEOUT} seconds. tic start time: {tic_time}. "
         f"last_heartbeat time: {last_receive_time}"
     )
-    _current_context.tokenizer_manager.rid_to_state.pop(rid, None)
-    _current_context.tokenizer_manager.server_status = ServerStatus.UnHealthy
+    get_current_context().tokenizer_manager.rid_to_state.pop(rid, None)
+    get_current_context().tokenizer_manager.server_status = ServerStatus.UnHealthy
     return Response(status_code=503)
 
 
 @app.get("/model_info")
 async def model_info():
     """Get the model information."""
-    model_config = _current_context.tokenizer_manager.model_config
+    model_config = get_current_context().tokenizer_manager.model_config
     result = {
-        "model_path": _current_context.tokenizer_manager.model_path,
-        "tokenizer_path": _current_context.tokenizer_manager.server_args.tokenizer_path,
-        "is_generation": _current_context.tokenizer_manager.is_generation,
-        "preferred_sampling_params": _current_context.tokenizer_manager.server_args.preferred_sampling_params,
-        "weight_version": _current_context.tokenizer_manager.server_args.weight_version,
+        "model_path": get_current_context().tokenizer_manager.model_path,
+        "tokenizer_path": get_current_context().tokenizer_manager.server_args.tokenizer_path,
+        "is_generation": get_current_context().tokenizer_manager.is_generation,
+        "preferred_sampling_params": get_current_context().tokenizer_manager.server_args.preferred_sampling_params,
+        "weight_version": get_current_context().tokenizer_manager.server_args.weight_version,
         "has_image_understanding": model_config.is_image_understandable_model,
         "has_audio_understanding": model_config.is_audio_understandable_model,
         "model_type": getattr(model_config.hf_config, "model_type", None),
         "architectures": getattr(model_config.hf_config, "architectures", None),
-        "weight_version": _current_context.tokenizer_manager.server_args.weight_version,
+        "weight_version": get_current_context().tokenizer_manager.server_args.weight_version,
         # "hf_config": model_config.hf_config.to_dict(),
     }
     return result
@@ -837,16 +837,16 @@ async def server_info():
     """Get the server information."""
     # Returns internal states per DP.
     internal_states: List[Dict[Any, Any]] = (
-        await _current_context.tokenizer_manager.get_internal_state()
+        await get_current_context().tokenizer_manager.get_internal_state()
     )
 
     # This field is not serializable.
-    if hasattr(_current_context.tokenizer_manager.server_args, "model_config"):
-        del _current_context.tokenizer_manager.server_args.model_config
+    if hasattr(get_current_context().tokenizer_manager.server_args, "model_config"):
+        del get_current_context().tokenizer_manager.server_args.model_config
 
     return {
-        **dataclasses.asdict(_current_context.tokenizer_manager.server_args),
-        **_current_context.scheduler_info,
+        **dataclasses.asdict(get_current_context().tokenizer_manager.server_args),
+        **get_current_context().scheduler_info,
         "internal_states": internal_states,
         "version": __version__,
     }
@@ -869,7 +869,7 @@ async def get_load():
         "Endpoint '/get_load' is deprecated and will be removed in a future version. "
         "Please use '/v1/loads' instead."
     )
-    return await _current_context.tokenizer_manager.get_load()
+    return await get_current_context().tokenizer_manager.get_load()
 
 
 # example usage:
@@ -880,7 +880,7 @@ async def set_internal_state(
     obj: SetInternalStateReq,
     request: Request,
 ):
-    res = await _current_context.tokenizer_manager.set_internal_state(obj)
+    res = await get_current_context().tokenizer_manager.set_internal_state(obj)
     return res
 
 
@@ -895,7 +895,9 @@ async def generate_request(
 
         async def stream_results() -> AsyncIterator[bytes]:
             try:
-                async for out in _current_context.tokenizer_manager.generate_request(
+                async for (
+                    out
+                ) in get_current_context().tokenizer_manager.generate_request(
                     obj, request
                 ):
                     yield b"data: " + orjson.dumps(
@@ -912,13 +914,15 @@ async def generate_request(
         return StreamingResponse(
             stream_results(),
             media_type="text/event-stream",
-            background=_current_context.tokenizer_manager.create_abort_task(obj),
+            background=get_current_context().tokenizer_manager.create_abort_task(obj),
         )
     else:
         try:
-            ret = await _current_context.tokenizer_manager.generate_request(
-                obj, request
-            ).__anext__()
+            ret = (
+                await get_current_context()
+                .tokenizer_manager.generate_request(obj, request)
+                .__anext__()
+            )
             return ret
         except ValueError as e:
             logger.error(f"[http_server] Error: {e}")
@@ -932,9 +936,11 @@ async def encode_request(
 ):
     """Handle an embedding request."""
     try:
-        ret = await _current_context.tokenizer_manager.generate_request(
-            obj, request
-        ).__anext__()
+        ret = (
+            await get_current_context()
+            .tokenizer_manager.generate_request(obj, request)
+            .__anext__()
+        )
         return ret
     except ValueError as e:
         return _create_error_response(e)
@@ -947,9 +953,11 @@ async def classify_request(
 ):
     """Handle a reward model request. Now the arguments and return values are the same as embedding models."""
     try:
-        ret = await _current_context.tokenizer_manager.generate_request(
-            obj, request
-        ).__anext__()
+        ret = (
+            await get_current_context()
+            .tokenizer_manager.generate_request(obj, request)
+            .__anext__()
+        )
         return ret
     except ValueError as e:
         return _create_error_response(e)
@@ -959,7 +967,7 @@ async def classify_request(
 @auth_level(AuthLevel.ADMIN_OPTIONAL)
 async def flush_cache():
     """Flush the radix cache."""
-    ret = await _current_context.tokenizer_manager.flush_cache()
+    ret = await get_current_context().tokenizer_manager.flush_cache()
     return Response(
         content="Cache flushed.\nPlease check backend logs for more details. "
         "(When there are running or waiting requests, the operation will not be performed.)\n",
@@ -987,7 +995,7 @@ async def clear_hicache_storage_backend_deprecated():
 @auth_level(AuthLevel.ADMIN_OPTIONAL)
 async def clear_hicache_storage_backend():
     """Clear the hierarchical cache storage backend."""
-    ret = await _current_context.tokenizer_manager.clear_hicache_storage()
+    ret = await get_current_context().tokenizer_manager.clear_hicache_storage()
     return Response(
         content="Hierarchical cache storage backend cleared.\n",
         status_code=200 if ret.success else HTTPStatus.BAD_REQUEST,
@@ -1086,7 +1094,7 @@ async def start_profile_async(
     if obj is None:
         obj = ProfileReqInput()
 
-    await _current_context.tokenizer_manager.start_profile(
+    await get_current_context().tokenizer_manager.start_profile(
         output_dir=obj.output_dir,
         start_step=obj.start_step,
         num_steps=obj.num_steps,
@@ -1108,7 +1116,7 @@ async def start_profile_async(
 @auth_level(AuthLevel.ADMIN_OPTIONAL)
 async def stop_profile_async():
     """Stop profiling."""
-    await _current_context.tokenizer_manager.stop_profile()
+    await get_current_context().tokenizer_manager.stop_profile()
     return Response(
         content="Stop profiling. This will take some time.\n",
         status_code=200,
@@ -1121,7 +1129,7 @@ async def freeze_gc_async():
     """
     See engine.freeze_gc for more details.
     """
-    await _current_context.tokenizer_manager.freeze_gc()
+    await get_current_context().tokenizer_manager.freeze_gc()
     return Response(
         content="Garbage collection frozen.\n",
         status_code=200,
@@ -1132,7 +1140,7 @@ async def freeze_gc_async():
 @auth_level(AuthLevel.ADMIN_OPTIONAL)
 async def start_expert_distribution_record_async():
     """Start recording the expert distribution. Clear the previous record if any."""
-    await _current_context.tokenizer_manager.start_expert_distribution_record()
+    await get_current_context().tokenizer_manager.start_expert_distribution_record()
     return Response(
         content="Start recording the expert distribution.\n",
         status_code=200,
@@ -1143,7 +1151,7 @@ async def start_expert_distribution_record_async():
 @auth_level(AuthLevel.ADMIN_OPTIONAL)
 async def stop_expert_distribution_record_async():
     """Stop recording the expert distribution."""
-    await _current_context.tokenizer_manager.stop_expert_distribution_record()
+    await get_current_context().tokenizer_manager.stop_expert_distribution_record()
     return Response(
         content="Stop recording the expert distribution.\n",
         status_code=200,
@@ -1154,7 +1162,7 @@ async def stop_expert_distribution_record_async():
 @auth_level(AuthLevel.ADMIN_OPTIONAL)
 async def dump_expert_distribution_record_async():
     """Dump expert distribution record."""
-    await _current_context.tokenizer_manager.dump_expert_distribution_record()
+    await get_current_context().tokenizer_manager.dump_expert_distribution_record()
     return Response(
         content="Dump expert distribution record.\n",
         status_code=200,
@@ -1168,8 +1176,12 @@ async def update_weights_from_disk(
     request: Request,
 ):
     """Update the weights from disk inplace without re-launching the server."""
-    success, message, num_paused_requests = (
-        await _current_context.tokenizer_manager.update_weights_from_disk(obj, request)
+    (
+        success,
+        message,
+        num_paused_requests,
+    ) = await get_current_context().tokenizer_manager.update_weights_from_disk(
+        obj, request
     )
 
     content = {
@@ -1195,10 +1207,11 @@ async def init_weights_send_group_for_remote_instance(
     obj: InitWeightsSendGroupForRemoteInstanceReqInput,
     request: Request,
 ):
-    success, message = (
-        await _current_context.tokenizer_manager.init_weights_send_group_for_remote_instance(
-            obj, request
-        )
+    (
+        success,
+        message,
+    ) = await get_current_context().tokenizer_manager.init_weights_send_group_for_remote_instance(
+        obj, request
     )
     content = {"success": success, "message": message}
     if success:
@@ -1213,10 +1226,11 @@ async def send_weights_to_remote_instance(
     obj: SendWeightsToRemoteInstanceReqInput,
     request: Request,
 ):
-    success, message = (
-        await _current_context.tokenizer_manager.send_weights_to_remote_instance(
-            obj, request
-        )
+    (
+        success,
+        message,
+    ) = await get_current_context().tokenizer_manager.send_weights_to_remote_instance(
+        obj, request
     )
     content = {"success": success, "message": message}
     if success:
@@ -1234,15 +1248,15 @@ async def get_remote_instance_transfer_engine_info(
         return Response(status_code=HTTPStatus.BAD_REQUEST)
 
     if (
-        _current_context.remote_instance_transfer_engine_info is None
-        or len(_current_context.remote_instance_transfer_engine_info) == 0
+        get_current_context().remote_instance_transfer_engine_info is None
+        or len(get_current_context().remote_instance_transfer_engine_info) == 0
     ):
         return Response(status_code=HTTPStatus.BAD_REQUEST)
 
     try:
         result = {
             "rank": rank,
-            "remote_instance_transfer_engine_info": _current_context.remote_instance_transfer_engine_info[
+            "remote_instance_transfer_engine_info": get_current_context().remote_instance_transfer_engine_info[
                 rank
             ],
         }
@@ -1259,8 +1273,11 @@ async def init_weights_update_group(
     request: Request,
 ):
     """Initialize the parameter update group."""
-    success, message = (
-        await _current_context.tokenizer_manager.init_weights_update_group(obj, request)
+    (
+        success,
+        message,
+    ) = await get_current_context().tokenizer_manager.init_weights_update_group(
+        obj, request
     )
     content = {"success": success, "message": message}
     if success:
@@ -1276,10 +1293,11 @@ async def destroy_weights_update_group(
     request: Request,
 ):
     """Destroy the parameter update group."""
-    success, message = (
-        await _current_context.tokenizer_manager.destroy_weights_update_group(
-            obj, request
-        )
+    (
+        success,
+        message,
+    ) = await get_current_context().tokenizer_manager.destroy_weights_update_group(
+        obj, request
     )
     content = {"success": success, "message": message}
     return ORJSONResponse(
@@ -1300,10 +1318,11 @@ async def update_weights_from_tensor(
     3. Any binary data in the named tensors should be base64 encoded.
     """
 
-    success, message = (
-        await _current_context.tokenizer_manager.update_weights_from_tensor(
-            obj, request
-        )
+    (
+        success,
+        message,
+    ) = await get_current_context().tokenizer_manager.update_weights_from_tensor(
+        obj, request
     )
 
     content = {"success": success, "message": message}
@@ -1319,10 +1338,11 @@ async def update_weights_from_distributed(
     request: Request,
 ):
     """Update model parameter from distributed online."""
-    success, message = (
-        await _current_context.tokenizer_manager.update_weights_from_distributed(
-            obj, request
-        )
+    (
+        success,
+        message,
+    ) = await get_current_context().tokenizer_manager.update_weights_from_distributed(
+        obj, request
     )
 
     content = {"success": success, "message": message}
@@ -1339,14 +1359,17 @@ async def update_weights_from_ipc(
     request: Request,
 ):
     """Update the weights from IPC (Inter-Process Communication) for checkpoint-engine integration."""
-    success, message = await _current_context.tokenizer_manager.update_weights_from_ipc(
+    (
+        success,
+        message,
+    ) = await get_current_context().tokenizer_manager.update_weights_from_ipc(
         obj, request
     )
 
     content = {"success": success, "message": message}
     if success:
-        if _current_context.tokenizer_manager.initial_weights_loaded is False:
-            _current_context.tokenizer_manager.initial_weights_loaded = True
+        if get_current_context().tokenizer_manager.initial_weights_loaded is False:
+            get_current_context().tokenizer_manager.initial_weights_loaded = True
         return ORJSONResponse(content)
     else:
         return ORJSONResponse(content, status_code=HTTPStatus.BAD_REQUEST)
@@ -1360,13 +1383,15 @@ async def update_weight_version(
 ):
     """Update the weight version. This operation requires no active requests."""
     if obj.abort_all_requests:
-        _current_context.tokenizer_manager.abort_request(abort_all=True)
+        get_current_context().tokenizer_manager.abort_request(abort_all=True)
 
     # Use a simple approach without the complex lock mechanism for now
     # since weight_version update is a simple operation that doesn't affect model weights
     try:
         # Update the weight version in server args (the single source of truth)
-        _current_context.tokenizer_manager.server_args.weight_version = obj.new_version
+        get_current_context().tokenizer_manager.server_args.weight_version = (
+            obj.new_version
+        )
 
         return ORJSONResponse(
             {
@@ -1394,7 +1419,9 @@ async def get_weights_by_name(
 ):
     """Get model parameter by name."""
     try:
-        ret = await _current_context.tokenizer_manager.get_weights_by_name(obj, request)
+        ret = await get_current_context().tokenizer_manager.get_weights_by_name(
+            obj, request
+        )
         if ret is None:
             return _create_error_response("Get parameter by name failed")
         else:
@@ -1411,7 +1438,9 @@ async def release_memory_occupation(
 ):
     """Release GPU memory occupation temporarily."""
     try:
-        await _current_context.tokenizer_manager.release_memory_occupation(obj, request)
+        await get_current_context().tokenizer_manager.release_memory_occupation(
+            obj, request
+        )
     except Exception as e:
         return _create_error_response(e)
 
@@ -1424,7 +1453,9 @@ async def resume_memory_occupation(
 ):
     """Resume GPU memory occupation."""
     try:
-        await _current_context.tokenizer_manager.resume_memory_occupation(obj, request)
+        await get_current_context().tokenizer_manager.resume_memory_occupation(
+            obj, request
+        )
     except Exception as e:
         return _create_error_response(e)
 
@@ -1435,7 +1466,7 @@ async def check_weights(
     obj: CheckWeightsReqInput,
     request: Request,
 ):
-    success, message = await _current_context.tokenizer_manager.check_weights(
+    success, message = await get_current_context().tokenizer_manager.check_weights(
         obj, request
     )
     return ORJSONResponse(
@@ -1456,7 +1487,7 @@ async def slow_down(
     to let it run in full batch size.
     """
     try:
-        await _current_context.tokenizer_manager.slow_down(obj, request)
+        await get_current_context().tokenizer_manager.slow_down(obj, request)
     except Exception as e:
         return _create_error_response(e)
 
@@ -1468,7 +1499,9 @@ async def load_lora_adapter(
     request: Request,
 ):
     """Load a new LoRA adapter without re-launching the server."""
-    result = await _current_context.tokenizer_manager.load_lora_adapter(obj, request)
+    result = await get_current_context().tokenizer_manager.load_lora_adapter(
+        obj, request
+    )
 
     if result.success:
         return ORJSONResponse(
@@ -1488,8 +1521,10 @@ async def load_lora_adapter_from_tensors(
     request: Request,
 ):
     """Load a new LoRA adapter from tensors without re-launching the server."""
-    result = await _current_context.tokenizer_manager.load_lora_adapter_from_tensors(
-        obj, request
+    result = (
+        await get_current_context().tokenizer_manager.load_lora_adapter_from_tensors(
+            obj, request
+        )
     )
 
     if result.success:
@@ -1505,7 +1540,9 @@ async def unload_lora_adapter(
     request: Request,
 ):
     """Load a new LoRA adapter without re-launching the server."""
-    result = await _current_context.tokenizer_manager.unload_lora_adapter(obj, request)
+    result = await get_current_context().tokenizer_manager.unload_lora_adapter(
+        obj, request
+    )
 
     if result.success:
         return ORJSONResponse(
@@ -1526,7 +1563,9 @@ async def open_session(
 ):
     """Open a session, and return its unique session id."""
     try:
-        session_id = await _current_context.tokenizer_manager.open_session(obj, request)
+        session_id = await get_current_context().tokenizer_manager.open_session(
+            obj, request
+        )
         if session_id is None:
             raise Exception(
                 "Failed to open the session. Check if a session with the same id is still open."
@@ -1543,7 +1582,7 @@ async def close_session(
 ):
     """Close the session."""
     try:
-        await _current_context.tokenizer_manager.close_session(obj, request)
+        await get_current_context().tokenizer_manager.close_session(obj, request)
         return Response(status_code=200)
     except Exception as e:
         return _create_error_response(e)
@@ -1556,7 +1595,7 @@ async def configure_logging(
     request: Request,
 ):
     """Configure the request logging options."""
-    _current_context.tokenizer_manager.configure_logging(obj)
+    get_current_context().tokenizer_manager.configure_logging(obj)
     return Response(status_code=200)
 
 
@@ -1568,7 +1607,7 @@ async def abort_request(
 ):
     """Abort a request."""
     try:
-        _current_context.tokenizer_manager.abort_request(
+        get_current_context().tokenizer_manager.abort_request(
             rid=obj.rid, abort_all=obj.abort_all
         )
         return Response(status_code=200)
@@ -1631,7 +1670,7 @@ async def pause_generation(
     request: Request,
 ):
     """Pause generation."""
-    await _current_context.tokenizer_manager.pause_generation(obj)
+    await get_current_context().tokenizer_manager.pause_generation(obj)
     return ORJSONResponse(
         content={"message": "Generation paused successfully.", "status": "ok"},
         status_code=200,
@@ -1645,7 +1684,7 @@ async def continue_generation(
     request: Request,
 ):
     """Continue generation."""
-    await _current_context.tokenizer_manager.continue_generation(obj)
+    await get_current_context().tokenizer_manager.continue_generation(obj)
     return ORJSONResponse(
         content={"message": "Generation continued successfully.", "status": "ok"},
         status_code=200,
@@ -1752,7 +1791,7 @@ async def openai_v1_detokenize(
 @app.get("/v1/models", response_class=ORJSONResponse)
 async def available_models():
     """Show available models. OpenAI-compatible endpoint."""
-    served_model_names = [_current_context.tokenizer_manager.served_model_name]
+    served_model_names = [get_current_context().tokenizer_manager.served_model_name]
     model_cards = []
 
     # Add base model
@@ -1761,13 +1800,13 @@ async def available_models():
             ModelCard(
                 id=served_model_name,
                 root=served_model_name,
-                max_model_len=_current_context.tokenizer_manager.model_config.context_len,
+                max_model_len=get_current_context().tokenizer_manager.model_config.context_len,
             )
         )
 
     # Add loaded LoRA adapters
-    if _current_context.tokenizer_manager.server_args.enable_lora:
-        lora_registry = _current_context.tokenizer_manager.lora_registry
+    if get_current_context().tokenizer_manager.server_args.enable_lora:
+        lora_registry = get_current_context().tokenizer_manager.lora_registry
         for _, lora_ref in lora_registry.get_all_adapters().items():
             model_cards.append(
                 ModelCard(
@@ -1786,7 +1825,7 @@ async def retrieve_model(
     model: str,
 ):
     """Retrieves a model instance, providing basic information about the model."""
-    served_model_names = [_current_context.tokenizer_manager.served_model_name]
+    served_model_names = [get_current_context().tokenizer_manager.served_model_name]
 
     if model not in served_model_names:
         return ORJSONResponse(
@@ -1804,7 +1843,7 @@ async def retrieve_model(
     return ModelCard(
         id=model,
         root=model,
-        max_model_len=_current_context.tokenizer_manager.model_config.context_len,
+        max_model_len=get_current_context().tokenizer_manager.model_config.context_len,
     )
 
 
