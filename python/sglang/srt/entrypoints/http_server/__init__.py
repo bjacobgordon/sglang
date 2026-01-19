@@ -206,7 +206,6 @@ def _admin_api_key_missing_response(
     )
 
 
-# Store global states
 @dataclasses.dataclass
 class GlobalState:
     tokenizer_manager: Union[TokenizerManager, MultiTokenizerRouter, TokenizerWorker]
@@ -2014,7 +2013,6 @@ def _launch_server(
         parse_remote_instance_transfer_engine_info_from_scheduler_infos(scheduler_infos)
     )
 
-    # Set global states
     set_global_state(
         GlobalState(
             tokenizer_manager=tokenizer_manager,
