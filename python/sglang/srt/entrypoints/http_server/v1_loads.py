@@ -47,10 +47,10 @@ _OPTIONAL_METRIC_SECTIONS = {
 
 
 def _get_tokenizer_manager():
-    """Dependency to get tokenizer_manager from global state."""
-    from sglang.srt.entrypoints.http_server import get_global_state
+    """Dependency to get tokenizer_manager from current state."""
+    from sglang.srt.entrypoints.http_server import get_current_state
 
-    return get_global_state().tokenizer_manager
+    return get_current_state().tokenizer_manager
 
 
 def _loads_dict_factory(items):
