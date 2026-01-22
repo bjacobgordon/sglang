@@ -1,3 +1,7 @@
 {
-  "cmake.sourceDirectory": "${workspaceFolder}/sgl-kernel"
+  "cmake.sourceDirectory": "${workspaceFolder}/sgl-kernel",
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.patterns": {
+    ".codespellrc": "words.*.txt"
+  }
 }
