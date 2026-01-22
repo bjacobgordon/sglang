@@ -763,16 +763,6 @@ async def health_generate(request: Request) -> Response:
     return Response(status_code=503)
 
 
-@app.get("/get_model_info")
-async def get_model_info():
-    """Get the model information (deprecated - use /model_info instead)."""
-    logger.warning(
-        "Endpoint '/get_model_info' is deprecated and will be removed in a future version. "
-        "Please use '/model_info' instead."
-    )
-    return await model_info()
-
-
 @app.get("/model_info")
 async def model_info():
     """Get the model information."""
@@ -791,6 +781,16 @@ async def model_info():
         # "hf_config": model_config.hf_config.to_dict(),
     }
     return result
+
+
+@app.get("/get_model_info")
+async def get_model_info():
+    """Get the model information (deprecated - use /model_info instead)."""
+    logger.warning(
+        "Endpoint '/get_model_info' is deprecated and will be removed in a future version. "
+        "Please use '/model_info' instead."
+    )
+    return await model_info()
 
 
 @app.get("/get_weight_version")
