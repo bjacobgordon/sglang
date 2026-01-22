@@ -207,7 +207,7 @@ def _admin_api_key_missing_response(
 
 
 @dataclasses.dataclass
-class GlobalState:
+class InferenceState:
     tokenizer_manager: Union[TokenizerManager, MultiTokenizerRouter, TokenizerWorker]
     template_manager: TemplateManager
     scheduler_info: Dict
@@ -222,16 +222,16 @@ class GlobalState:
     remote_instance_transfer_engine_info: Optional[Dict] = None
 
 
-_global_state: Optional[GlobalState] = None
+_global_state: Optional[InferenceState] = None
 
 
-def set_global_state(global_state: GlobalState) -> GlobalState:
+def set_global_state(global_state: InferenceState) -> InferenceState:
     global _global_state
     _global_state = global_state
     return _global_state
 
 
-def get_global_state() -> GlobalState:
+def get_global_state() -> InferenceState:
     if _global_state is None:
         raise RuntimeError(
             "Global state is not set. Call `set_global_state` first.",
@@ -241,7 +241,7 @@ def get_global_state() -> GlobalState:
 
 
 async def init_multi_tokenizer() -> tuple[
-    GlobalState,
+    InferenceState,
     ServerArgs,
 ]:
     """
@@ -284,7 +284,7 @@ async def init_multi_tokenizer() -> tuple[
     tokenizer_manager.max_req_input_len = scheduler_info["max_req_input_len"]
 
     updated_state = set_global_state(
-        GlobalState(
+        InferenceState(
             tokenizer_manager=tokenizer_manager,
             template_manager=template_manager,
             scheduler_info=scheduler_info,
@@ -2018,7 +2018,7 @@ def _launch_server(
     )
 
     updated_state = set_global_state(
-        GlobalState(
+        InferenceState(
             tokenizer_manager=tokenizer_manager,
             template_manager=template_manager,
             scheduler_info=scheduler_infos[0],
