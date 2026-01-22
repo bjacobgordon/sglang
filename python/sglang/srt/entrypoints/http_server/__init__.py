@@ -803,16 +803,6 @@ async def weight_version():
     )
 
 
-@app.get("/get_server_info")
-async def get_server_info():
-    """Get the server information (deprecated - use /server_info instead)."""
-    logger.warning(
-        "Endpoint '/get_server_info' is deprecated and will be removed in a future version. "
-        "Please use '/server_info' instead."
-    )
-    return await server_info()
-
-
 @app.get("/server_info")
 async def server_info():
     """Get the server information."""
@@ -831,6 +821,16 @@ async def server_info():
         "internal_states": internal_states,
         "version": __version__,
     }
+
+
+@app.get("/get_server_info")
+async def get_server_info():
+    """Get the server information (deprecated - use /server_info instead)."""
+    logger.warning(
+        "Endpoint '/get_server_info' is deprecated and will be removed in a future version. "
+        "Please use '/server_info' instead."
+    )
+    return await server_info()
 
 
 @app.get("/get_load")
