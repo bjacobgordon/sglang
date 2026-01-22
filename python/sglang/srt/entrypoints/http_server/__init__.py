@@ -462,6 +462,34 @@ def _wait_weights_ready():
     )
 
 
+def _wait_and_warmup(
+    server_args: ServerArgs,
+    launch_callback: Optional[Callable[[], None]] = None,
+    execute_warmup_func: Callable = _execute_server_warmup,
+):
+    if server_args.checkpoint_engine_wait_weights_before_ready:
+        _wait_weights_ready()
+
+    # Send a warmup request
+    if not server_args.skip_server_warmup:
+        if not execute_warmup_func(server_args):
+            return
+    else:
+        _global_state.tokenizer_manager.server_status = ServerStatus.Up
+
+    # The server is ready for requests
+    logger.info("The server is fired up and ready to roll!")
+
+    if server_args.delete_ckpt_after_loading:
+        delete_directory(server_args.model_path)
+
+    if server_args.debug_tensor_dump_input_file:
+        kill_process_tree(os.getpid())
+
+    if launch_callback is not None:
+        launch_callback()
+
+
 @asynccontextmanager
 async def lifespan(fast_api_app: FastAPI):
     if getattr(fast_api_app, "is_single_tokenizer_mode", False):
@@ -1787,34 +1815,6 @@ async def vertex_generate(vertex_req: VertexGenerateReqInput, raw_request: Reque
     if isinstance(ret, Response):
         return ret
     return ORJSONResponse({"predictions": ret})
-
-
-def _wait_and_warmup(
-    server_args: ServerArgs,
-    launch_callback: Optional[Callable[[], None]] = None,
-    execute_warmup_func: Callable = _execute_server_warmup,
-):
-    if server_args.checkpoint_engine_wait_weights_before_ready:
-        _wait_weights_ready()
-
-    # Send a warmup request
-    if not server_args.skip_server_warmup:
-        if not execute_warmup_func(server_args):
-            return
-    else:
-        _global_state.tokenizer_manager.server_status = ServerStatus.Up
-
-    # The server is ready for requests
-    logger.info("The server is fired up and ready to roll!")
-
-    if server_args.delete_ckpt_after_loading:
-        delete_directory(server_args.model_path)
-
-    if server_args.debug_tensor_dump_input_file:
-        kill_process_tree(os.getpid())
-
-    if launch_callback is not None:
-        launch_callback()
 
 
 def launch_server(
