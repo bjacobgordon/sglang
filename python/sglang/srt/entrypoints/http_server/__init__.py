@@ -177,6 +177,12 @@ async def validate_json_request(raw_request: Request):
         )
 
 
+def _create_error_response(e):
+    return ORJSONResponse(
+        {"error": {"message": str(e)}}, status_code=HTTPStatus.BAD_REQUEST
+    )
+
+
 # Store global states
 @dataclasses.dataclass
 class _GlobalState:
@@ -1582,12 +1588,6 @@ async def vertex_generate(vertex_req: VertexGenerateReqInput, raw_request: Reque
     if isinstance(ret, Response):
         return ret
     return ORJSONResponse({"predictions": ret})
-
-
-def _create_error_response(e):
-    return ORJSONResponse(
-        {"error": {"message": str(e)}}, status_code=HTTPStatus.BAD_REQUEST
-    )
 
 
 # FIXME: In theory we should configure ADMIN_FORCE for some entrypoints, but doing so
