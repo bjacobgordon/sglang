@@ -240,7 +240,10 @@ def get_global_state() -> GlobalState:
     return _global_state
 
 
-async def init_multi_tokenizer() -> ServerArgs:
+async def init_multi_tokenizer() -> tuple[
+    GlobalState,
+    ServerArgs,
+]:
     """
     Initialization function for multi-process tokenizer mode.
     It read args information from shm and inits tokenizer manager for current process.
@@ -280,7 +283,7 @@ async def init_multi_tokenizer() -> ServerArgs:
 
     tokenizer_manager.max_req_input_len = scheduler_info["max_req_input_len"]
 
-    set_global_state(
+    updated_state = set_global_state(
         GlobalState(
             tokenizer_manager=tokenizer_manager,
             template_manager=template_manager,
@@ -288,7 +291,7 @@ async def init_multi_tokenizer() -> ServerArgs:
         )
     )
 
-    return server_args
+    return updated_state, server_args
 
 
 # Minimal 32x32 black PNG (base64, GLM4v requires at least 32x32 sized image)
@@ -505,9 +508,9 @@ async def lifespan(fast_api_app: FastAPI):
         thread_label = "Tokenizer"
     else:
         # Initialize multi-tokenizer support for worker processes
-        server_args = await init_multi_tokenizer()
+        updated_state, server_args = await init_multi_tokenizer()
         warmup_thread_kwargs = dict(server_args=server_args)
-        thread_label = f"MultiTokenizer-{_global_state.tokenizer_manager.worker_id}"
+        thread_label = f"MultiTokenizer-{updated_state.tokenizer_manager.worker_id}"
 
     # Add prometheus middleware
     if server_args.enable_metrics:
