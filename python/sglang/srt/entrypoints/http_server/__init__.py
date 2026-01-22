@@ -206,7 +206,7 @@ def _admin_api_key_missing_response(
 
 # Store global states
 @dataclasses.dataclass
-class _GlobalState:
+class GlobalState:
     tokenizer_manager: Union[TokenizerManager, MultiTokenizerRouter, TokenizerWorker]
     template_manager: TemplateManager
     scheduler_info: Dict
@@ -221,15 +221,15 @@ class _GlobalState:
     remote_instance_transfer_engine_info: Optional[Dict] = None
 
 
-_global_state: Optional[_GlobalState] = None
+_global_state: Optional[GlobalState] = None
 
 
-def set_global_state(global_state: _GlobalState):
+def set_global_state(global_state: GlobalState):
     global _global_state
     _global_state = global_state
 
 
-def get_global_state() -> _GlobalState:
+def get_global_state() -> GlobalState:
     if _global_state is None:
         raise RuntimeError(
             "Global state is not set. Call `set_global_state` first.",
@@ -279,7 +279,7 @@ async def init_multi_tokenizer() -> ServerArgs:
     tokenizer_manager.max_req_input_len = scheduler_info["max_req_input_len"]
 
     set_global_state(
-        _GlobalState(
+        GlobalState(
             tokenizer_manager=tokenizer_manager,
             template_manager=template_manager,
             scheduler_info=scheduler_info,
@@ -1867,7 +1867,7 @@ def launch_server(
 
     # Set global states
     set_global_state(
-        _GlobalState(
+        GlobalState(
             tokenizer_manager=tokenizer_manager,
             template_manager=template_manager,
             scheduler_info=scheduler_infos[0],
