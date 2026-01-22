@@ -284,6 +284,163 @@ async def init_multi_tokenizer() -> ServerArgs:
     return server_args
 
 
+# Minimal 32x32 black PNG (base64, GLM4v requires at least 32x32 sized image)
+MINIMUM_PNG_PICTURE_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAbUlEQVRYhe3VsQ2AMAxE0Y/lIgNQULD/OqyCMgCihCKSG4yRuKuiNH6JLsoEbMACOGBcua9HOR7Y6w6swBwMy0qLTpkeI77qdEBpBFAHBBDAGH8WrwJKI4AAegUCfAKgEgpQDvh3CR3oQCuav58qlAw73kKCSgAAAABJRU5ErkJggg=="
+
+
+def _execute_server_warmup(server_args: ServerArgs):
+    headers = {}
+    url = server_args.url()
+    if server_args.api_key:
+        headers["Authorization"] = f"Bearer {server_args.api_key}"
+
+    # Wait until the server is launched
+    success = False
+    for _ in range(120):
+        time.sleep(1)
+        try:
+            res = requests.get(url + "/model_info", timeout=5, headers=headers)
+            assert res.status_code == 200, f"{res=}, {res.text=}"
+            success = True
+            break
+        except (AssertionError, requests.exceptions.RequestException):
+            last_traceback = get_exception_traceback()
+            pass
+
+    if not success:
+        logger.error(f"Initialization failed. warmup error: {last_traceback}")
+        kill_process_tree(os.getpid())
+        return success
+
+    model_info = res.json()
+
+    # Construct a warmup request
+    is_vlm = bool(model_info.get("has_image_understanding", False))
+    if model_info["is_generation"]:
+        if is_vlm and not server_args.skip_tokenizer_init:
+            request_name = "/v1/chat/completions"
+        else:
+            request_name = "/generate"
+    else:
+        request_name = "/encode"
+    max_new_tokens = 8 if model_info["is_generation"] else 1
+    json_data = {
+        "sampling_params": {
+            "temperature": 0,
+            "max_new_tokens": max_new_tokens,
+        },
+    }
+    if server_args.skip_tokenizer_init:
+        json_data["input_ids"] = [[10, 11, 12] for _ in range(server_args.dp_size)]
+        # TODO Workaround the bug that embedding errors for list of size 1
+        if server_args.dp_size == 1:
+            json_data["input_ids"] = json_data["input_ids"][0]
+    elif (
+        is_vlm
+        and server_args.disaggregation_mode == "null"
+        and model_info["is_generation"]
+    ):
+        # TODO: ChatCompletionRequest does not have bootstrap info required by disaggregation mode, disable image-warmup for now
+        # Only use chat completions format for generation models, not embedding models
+        json_data = {
+            "model": _global_state.tokenizer_manager.served_model_name,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/png;base64,{MINIMUM_PNG_PICTURE_BASE64}"
+                            },
+                        },
+                        {
+                            "type": "text",
+                            "text": "Describe the image.",
+                        },
+                    ],
+                }
+            ],
+            "max_tokens": max_new_tokens,
+            "stream": False,
+            "temperature": 0.0,
+        }
+    else:
+        json_data["text"] = ["The capital city of France is"] * server_args.dp_size
+        # TODO Workaround the bug that embedding errors for list of size 1
+        if server_args.dp_size == 1:
+            json_data["text"] = json_data["text"][0]
+
+    # Config debug dumping
+    if server_args.debug_tensor_dump_input_file:
+        json_data.pop("text", None)
+        json_data["input_ids"] = np.load(
+            server_args.debug_tensor_dump_input_file
+        ).tolist()
+        json_data["sampling_params"]["max_new_tokens"] = 0
+
+    # Send a warmup request
+    warmup_timeout = envs.SGLANG_WARMUP_TIMEOUT.get()
+    try:
+        if server_args.disaggregation_mode == "null":
+            res = requests.post(
+                url + request_name,
+                json=json_data,
+                headers=headers,
+                timeout=warmup_timeout if warmup_timeout > 0 else 600,
+            )
+            assert res.status_code == 200, f"{res.text}"
+            _global_state.tokenizer_manager.server_status = ServerStatus.Up
+
+        else:
+            logger.info(f"Start of pd disaggregation warmup ...")
+            json_data = {
+                "sampling_params": {
+                    "temperature": 0.0,
+                    "max_new_tokens": 8,
+                    "ignore_eos": True,
+                },
+                "bootstrap_host": [FAKE_BOOTSTRAP_HOST] * server_args.dp_size,
+                # This is a hack to ensure fake transfer is enabled during prefill warmup
+                # ensure each dp rank has a unique bootstrap_room during prefill warmup
+                "bootstrap_room": [
+                    i * (2**63 // server_args.dp_size) + (i % server_args.tp_size)
+                    for i in range(server_args.dp_size)
+                ],
+                "input_ids": [[10, 11, 12, 13]] * server_args.dp_size,
+            }
+            res = requests.post(
+                url + request_name,
+                json=json_data,
+                headers=headers,
+                timeout=(
+                    warmup_timeout if warmup_timeout > 0 else 1800
+                ),  # because of deep gemm precache is very long if not precache.
+            )
+            if res.status_code == 200:
+                logger.info(
+                    f"End of prefill disaggregation mode warmup with status {res.status_code}, resp: {res.json()}"
+                )
+                _global_state.tokenizer_manager.server_status = ServerStatus.Up
+            else:
+                logger.info(
+                    "Prefill disaggregation mode warm Up Failed, status code: {}".format(
+                        res.status_code
+                    )
+                )
+                _global_state.tokenizer_manager.server_status = ServerStatus.UnHealthy
+
+    except Exception:
+        last_traceback = get_exception_traceback()
+        logger.error(f"Initialization failed. warmup error: {last_traceback}")
+        kill_process_tree(os.getpid())
+        return False
+
+    # Debug print
+    # logger.info(f"warmup request returns: {res.json()=}")
+    return success
+
+
 @asynccontextmanager
 async def lifespan(fast_api_app: FastAPI):
     if getattr(fast_api_app, "is_single_tokenizer_mode", False):
@@ -1609,163 +1766,6 @@ async def vertex_generate(vertex_req: VertexGenerateReqInput, raw_request: Reque
     if isinstance(ret, Response):
         return ret
     return ORJSONResponse({"predictions": ret})
-
-
-# Minimal 32x32 black PNG (base64, GLM4v requires at least 32x32 sized image)
-MINIMUM_PNG_PICTURE_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAbUlEQVRYhe3VsQ2AMAxE0Y/lIgNQULD/OqyCMgCihCKSG4yRuKuiNH6JLsoEbMACOGBcua9HOR7Y6w6swBwMy0qLTpkeI77qdEBpBFAHBBDAGH8WrwJKI4AAegUCfAKgEgpQDvh3CR3oQCuav58qlAw73kKCSgAAAABJRU5ErkJggg=="
-
-
-def _execute_server_warmup(server_args: ServerArgs):
-    headers = {}
-    url = server_args.url()
-    if server_args.api_key:
-        headers["Authorization"] = f"Bearer {server_args.api_key}"
-
-    # Wait until the server is launched
-    success = False
-    for _ in range(120):
-        time.sleep(1)
-        try:
-            res = requests.get(url + "/model_info", timeout=5, headers=headers)
-            assert res.status_code == 200, f"{res=}, {res.text=}"
-            success = True
-            break
-        except (AssertionError, requests.exceptions.RequestException):
-            last_traceback = get_exception_traceback()
-            pass
-
-    if not success:
-        logger.error(f"Initialization failed. warmup error: {last_traceback}")
-        kill_process_tree(os.getpid())
-        return success
-
-    model_info = res.json()
-
-    # Construct a warmup request
-    is_vlm = bool(model_info.get("has_image_understanding", False))
-    if model_info["is_generation"]:
-        if is_vlm and not server_args.skip_tokenizer_init:
-            request_name = "/v1/chat/completions"
-        else:
-            request_name = "/generate"
-    else:
-        request_name = "/encode"
-    max_new_tokens = 8 if model_info["is_generation"] else 1
-    json_data = {
-        "sampling_params": {
-            "temperature": 0,
-            "max_new_tokens": max_new_tokens,
-        },
-    }
-    if server_args.skip_tokenizer_init:
-        json_data["input_ids"] = [[10, 11, 12] for _ in range(server_args.dp_size)]
-        # TODO Workaround the bug that embedding errors for list of size 1
-        if server_args.dp_size == 1:
-            json_data["input_ids"] = json_data["input_ids"][0]
-    elif (
-        is_vlm
-        and server_args.disaggregation_mode == "null"
-        and model_info["is_generation"]
-    ):
-        # TODO: ChatCompletionRequest does not have bootstrap info required by disaggregation mode, disable image-warmup for now
-        # Only use chat completions format for generation models, not embedding models
-        json_data = {
-            "model": _global_state.tokenizer_manager.served_model_name,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/png;base64,{MINIMUM_PNG_PICTURE_BASE64}"
-                            },
-                        },
-                        {
-                            "type": "text",
-                            "text": "Describe the image.",
-                        },
-                    ],
-                }
-            ],
-            "max_tokens": max_new_tokens,
-            "stream": False,
-            "temperature": 0.0,
-        }
-    else:
-        json_data["text"] = ["The capital city of France is"] * server_args.dp_size
-        # TODO Workaround the bug that embedding errors for list of size 1
-        if server_args.dp_size == 1:
-            json_data["text"] = json_data["text"][0]
-
-    # Config debug dumping
-    if server_args.debug_tensor_dump_input_file:
-        json_data.pop("text", None)
-        json_data["input_ids"] = np.load(
-            server_args.debug_tensor_dump_input_file
-        ).tolist()
-        json_data["sampling_params"]["max_new_tokens"] = 0
-
-    # Send a warmup request
-    warmup_timeout = envs.SGLANG_WARMUP_TIMEOUT.get()
-    try:
-        if server_args.disaggregation_mode == "null":
-            res = requests.post(
-                url + request_name,
-                json=json_data,
-                headers=headers,
-                timeout=warmup_timeout if warmup_timeout > 0 else 600,
-            )
-            assert res.status_code == 200, f"{res.text}"
-            _global_state.tokenizer_manager.server_status = ServerStatus.Up
-
-        else:
-            logger.info(f"Start of pd disaggregation warmup ...")
-            json_data = {
-                "sampling_params": {
-                    "temperature": 0.0,
-                    "max_new_tokens": 8,
-                    "ignore_eos": True,
-                },
-                "bootstrap_host": [FAKE_BOOTSTRAP_HOST] * server_args.dp_size,
-                # This is a hack to ensure fake transfer is enabled during prefill warmup
-                # ensure each dp rank has a unique bootstrap_room during prefill warmup
-                "bootstrap_room": [
-                    i * (2**63 // server_args.dp_size) + (i % server_args.tp_size)
-                    for i in range(server_args.dp_size)
-                ],
-                "input_ids": [[10, 11, 12, 13]] * server_args.dp_size,
-            }
-            res = requests.post(
-                url + request_name,
-                json=json_data,
-                headers=headers,
-                timeout=(
-                    warmup_timeout if warmup_timeout > 0 else 1800
-                ),  # because of deep gemm precache is very long if not precache.
-            )
-            if res.status_code == 200:
-                logger.info(
-                    f"End of prefill disaggregation mode warmup with status {res.status_code}, resp: {res.json()}"
-                )
-                _global_state.tokenizer_manager.server_status = ServerStatus.Up
-            else:
-                logger.info(
-                    "Prefill disaggregation mode warm Up Failed, status code: {}".format(
-                        res.status_code
-                    )
-                )
-                _global_state.tokenizer_manager.server_status = ServerStatus.UnHealthy
-
-    except Exception:
-        last_traceback = get_exception_traceback()
-        logger.error(f"Initialization failed. warmup error: {last_traceback}")
-        kill_process_tree(os.getpid())
-        return False
-
-    # Debug print
-    # logger.info(f"warmup request returns: {res.json()=}")
-    return success
 
 
 def _wait_and_warmup(
