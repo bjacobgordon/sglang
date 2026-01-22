@@ -161,6 +161,22 @@ HEALTH_CHECK_TIMEOUT = int(os.getenv("SGLANG_HEALTH_CHECK_TIMEOUT", 20))
 WAIT_WEIGHTS_READY_TIMEOUT = int(os.getenv("SGLANG_WAIT_WEIGHTS_READY_TIMEOUT", 120))
 
 
+async def validate_json_request(raw_request: Request):
+    """Validate that the request content-type is application/json."""
+    content_type = raw_request.headers.get("content-type", "").lower()
+    media_type = content_type.split(";", maxsplit=1)[0]
+    if media_type != "application/json":
+        raise RequestValidationError(
+            errors=[
+                {
+                    "loc": ["header", "content-type"],
+                    "msg": "Unsupported Media Type: Only 'application/json' is allowed",
+                    "type": "value_error",
+                }
+            ]
+        )
+
+
 # Store global states
 @dataclasses.dataclass
 class _GlobalState:
@@ -429,22 +445,6 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         status_code=400,
         content=err.model_dump(),
     )
-
-
-async def validate_json_request(raw_request: Request):
-    """Validate that the request content-type is application/json."""
-    content_type = raw_request.headers.get("content-type", "").lower()
-    media_type = content_type.split(";", maxsplit=1)[0]
-    if media_type != "application/json":
-        raise RequestValidationError(
-            errors=[
-                {
-                    "loc": ["header", "content-type"],
-                    "msg": "Unsupported Media Type: Only 'application/json' is allowed",
-                    "type": "value_error",
-                }
-            ]
-        )
 
 
 ##### Native API endpoints #####
