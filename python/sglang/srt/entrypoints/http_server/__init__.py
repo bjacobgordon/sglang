@@ -441,6 +441,27 @@ def _execute_server_warmup(server_args: ServerArgs):
     return success
 
 
+def _wait_weights_ready():
+    """Wait for weights to be ready within the specified timeout."""
+    timeout = WAIT_WEIGHTS_READY_TIMEOUT
+    start_time = time.time()
+
+    for _ in range(timeout):
+        if _global_state.tokenizer_manager.initial_weights_loaded:
+            logger.info(
+                f"Weights are ready after {time.time() - start_time:.2f} seconds"
+            )
+            return
+        time.sleep(1)
+
+    # Timeout reached without weights being ready
+    logger.error(
+        f"Weights are not ready after waiting {timeout} seconds. "
+        f"Consider increasing SGLANG_WAIT_WEIGHTS_READY_TIMEOUT environment variable. "
+        f"Current status: initial_weights_loaded={_global_state.tokenizer_manager.initial_weights_loaded}"
+    )
+
+
 @asynccontextmanager
 async def lifespan(fast_api_app: FastAPI):
     if getattr(fast_api_app, "is_single_tokenizer_mode", False):
@@ -1794,27 +1815,6 @@ def _wait_and_warmup(
 
     if launch_callback is not None:
         launch_callback()
-
-
-def _wait_weights_ready():
-    """Wait for weights to be ready within the specified timeout."""
-    timeout = WAIT_WEIGHTS_READY_TIMEOUT
-    start_time = time.time()
-
-    for _ in range(timeout):
-        if _global_state.tokenizer_manager.initial_weights_loaded:
-            logger.info(
-                f"Weights are ready after {time.time() - start_time:.2f} seconds"
-            )
-            return
-        time.sleep(1)
-
-    # Timeout reached without weights being ready
-    logger.error(
-        f"Weights are not ready after waiting {timeout} seconds. "
-        f"Consider increasing SGLANG_WAIT_WEIGHTS_READY_TIMEOUT environment variable. "
-        f"Current status: initial_weights_loaded={_global_state.tokenizer_manager.initial_weights_loaded}"
-    )
 
 
 def launch_server(
