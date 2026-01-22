@@ -225,9 +225,9 @@ class InferenceState:
 _global_state: Optional[InferenceState] = None
 
 
-def set_global_state(global_state: InferenceState) -> InferenceState:
+def set_global_state(given_state: InferenceState) -> InferenceState:
     global _global_state
-    _global_state = global_state
+    _global_state = given_state
     return _global_state
 
 
