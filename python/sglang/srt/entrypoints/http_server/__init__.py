@@ -2014,7 +2014,7 @@ def _launch_server(
         parse_remote_instance_transfer_engine_info_from_scheduler_infos(scheduler_infos)
     )
 
-    set_global_state(
+    updated_state = set_global_state(
         GlobalState(
             tokenizer_manager=tokenizer_manager,
             template_manager=template_manager,
@@ -2107,7 +2107,7 @@ def _launch_server(
             )
         finally:
             multi_tokenizer_args_shm.unlink()
-            _global_state.tokenizer_manager.socket_mapping.clear_all_sockets()
+            updated_state.tokenizer_manager.socket_mapping.clear_all_sockets()
 
 
 launch_server: ServerLauncher = _launch_server
