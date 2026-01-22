@@ -225,9 +225,10 @@ class GlobalState:
 _global_state: Optional[GlobalState] = None
 
 
-def set_global_state(global_state: GlobalState):
+def set_global_state(global_state: GlobalState) -> GlobalState:
     global _global_state
     _global_state = global_state
+    return _global_state
 
 
 def get_global_state() -> GlobalState:
