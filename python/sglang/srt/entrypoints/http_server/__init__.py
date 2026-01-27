@@ -230,6 +230,11 @@ def set_global_state(global_state: _GlobalState):
 
 
 def get_global_state() -> _GlobalState:
+    if _global_state is None:
+        raise RuntimeError(
+            "Global state is not set. Call `set_global_state` first.",
+        )
+
     return _global_state
 
 
