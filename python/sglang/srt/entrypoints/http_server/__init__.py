@@ -523,22 +523,27 @@ async def lifespan(fast_api_app: FastAPI):
 
     # Initialize OpenAI serving handlers
     fast_api_app.state.openai_serving_completion = OpenAIServingCompletion(
-        _global_state.tokenizer_manager, _global_state.template_manager
+        _global_state.tokenizer_manager,
+        _global_state.template_manager,
     )
     fast_api_app.state.openai_serving_chat = OpenAIServingChat(
-        _global_state.tokenizer_manager, _global_state.template_manager
+        _global_state.tokenizer_manager,
+        _global_state.template_manager,
     )
     fast_api_app.state.openai_serving_embedding = OpenAIServingEmbedding(
-        _global_state.tokenizer_manager, _global_state.template_manager
+        _global_state.tokenizer_manager,
+        _global_state.template_manager,
     )
     fast_api_app.state.openai_serving_classify = OpenAIServingClassify(
-        _global_state.tokenizer_manager, _global_state.template_manager
+        _global_state.tokenizer_manager,
+        _global_state.template_manager,
     )
     fast_api_app.state.openai_serving_score = OpenAIServingScore(
         _global_state.tokenizer_manager
     )
     fast_api_app.state.openai_serving_rerank = OpenAIServingRerank(
-        _global_state.tokenizer_manager, _global_state.template_manager
+        _global_state.tokenizer_manager,
+        _global_state.template_manager,
     )
     fast_api_app.state.openai_serving_tokenize = OpenAIServingTokenize(
         _global_state.tokenizer_manager
