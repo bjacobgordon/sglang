@@ -183,6 +183,27 @@ def _create_error_response(e):
     )
 
 
+# FIXME: In theory we should configure ADMIN_FORCE for some entrypoints, but doing so
+# would currently cause all endpoints to go through add_api_key_middleware
+# (even when neither api-key nor admin-api-key is configured).
+#
+# For now, we simulate ADMIN_FORCE by explicitly checking the admin API key parameter.
+# Once the auth wiring is refactored so ADMIN_FORCE only affects the intended
+# admin endpoints, we should switch this logic to use ADMIN_FORCE directly.
+def _admin_api_key_missing_response(
+    status_code: HTTPStatus = HTTPStatus.BAD_REQUEST,
+) -> ORJSONResponse:
+    return ORJSONResponse(
+        content={
+            "error": (
+                "This endpoint requires admin API key, but this server was started "
+                "without one (admin-api-key). Restart with --admin-api-key to enable."
+            )
+        },
+        status_code=status_code,
+    )
+
+
 # Store global states
 @dataclasses.dataclass
 class _GlobalState:
@@ -1588,27 +1609,6 @@ async def vertex_generate(vertex_req: VertexGenerateReqInput, raw_request: Reque
     if isinstance(ret, Response):
         return ret
     return ORJSONResponse({"predictions": ret})
-
-
-# FIXME: In theory we should configure ADMIN_FORCE for some entrypoints, but doing so
-# would currently cause all endpoints to go through add_api_key_middleware
-# (even when neither api-key nor admin-api-key is configured).
-#
-# For now, we simulate ADMIN_FORCE by explicitly checking the admin API key parameter.
-# Once the auth wiring is refactored so ADMIN_FORCE only affects the intended
-# admin endpoints, we should switch this logic to use ADMIN_FORCE directly.
-def _admin_api_key_missing_response(
-    status_code: HTTPStatus = HTTPStatus.BAD_REQUEST,
-) -> ORJSONResponse:
-    return ORJSONResponse(
-        content={
-            "error": (
-                "This endpoint requires admin API key, but this server was started "
-                "without one (admin-api-key). Restart with --admin-api-key to enable."
-            )
-        },
-        status_code=status_code,
-    )
 
 
 # Minimal 32x32 black PNG (base64, GLM4v requires at least 32x32 sized image)
